@@ -87,4 +87,213 @@
         <tag>java</tag>
       </tags>
   </entry>
+  <entry>
+    <title>mysql 基础优化</title>
+    <url>/2021/07/18/mysql-%E5%9F%BA%E7%A1%80%E4%BC%98%E5%8C%96/</url>
+    <content><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h3 id="1-1-索引失效情况如下"><a href="#1-1-索引失效情况如下" class="headerlink" title="1.1 索引失效情况如下"></a>1.1 索引失效情况如下</h3><p><strong>1. where语句中包含or时，可能会导致索引失效</strong></p>
+<p><strong>2. where语句中索引列使用了负向查询，可能会导致索引失效</strong></p>
+<p><strong>3. 索引字段可以为null，使用is null或is not null时，可能会导致索引失效</strong></p>
+<p><strong>4. 在索引列上使用内置函数，一定会导致索引失效</strong></p>
+<pre><code>    **4.1 隐式类型转换导致的索引失效**
+
+    **4.2 隐式字符编码转换导致的索引失效**</code></pre>
+<p><strong>5. 对索引列进行运算，一定会导致索引失效</strong></p>
+<p><strong>7. 联合索引中，where中索引列违背最左匹配原则，一定会导致索引失效</strong></p>
+<p><strong>8. MySQL优化器的最终选择，不走索引</strong></p>
+<p>下面详细描述</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">CREATE TABLE &#96;test&#96; (</span><br><span class="line">  &#96;id&#96; int NOT NULL AUTO_INCREMENT,</span><br><span class="line">  &#96;name&#96; varchar(23) DEFAULT NULL,</span><br><span class="line">  &#96;age&#96; tinyint DEFAULT NULL,</span><br><span class="line">  &#96;pos&#96; varchar(90) DEFAULT &#39;&#39;,</span><br><span class="line">  &#96;lan&#96; char(2) DEFAULT NULL,</span><br><span class="line">  PRIMARY KEY (&#96;id&#96;),</span><br><span class="line">  KEY &#96;three&#96; (&#96;age&#96;,&#96;name&#96;,&#96;pos&#96;)</span><br><span class="line">) ENGINE&#x3D;InnoDB AUTO_INCREMENT&#x3D;5 DEFAULT CHARSET&#x3D;utf8mb4 COLLATE&#x3D;utf8mb4_0900_ai_ci;</span><br><span class="line"></span><br><span class="line">create index  idx_age_name_pos on test(age,name,pos);</span><br></pre></td></tr></table></figure>
+<h4 id="1-1-1-最佳左前缀法则"><a href="#1-1-1-最佳左前缀法则" class="headerlink" title="1.1.1 最佳左前缀法则"></a>1.1.1 最佳左前缀法则</h4><ul>
+<li>查询从索引的最左列开始并且 不跳过索引中间的列。</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># 从左边开始匹配explain select * from test where t.age&#x3D;12 and t.name&#x3D;&#39;zhangsan&#39; and t.pos&#x3D;&#39;shenzhen&#39;;explain select * from test where  t.name&#x3D;&#39;zhangsan&#39; and t.pos&#x3D;&#39;shenzhen&#39;;#不走索引</span><br></pre></td></tr></table></figure>
+<h4 id="1-1-2-索引列上不做计算"><a href="#1-1-2-索引列上不做计算" class="headerlink" title="1.1.2 索引列上不做计算"></a>1.1.2 索引列上不做计算</h4><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">explain select * from test where age&#x3D;12 and left(name,3)&#x3D;&#39;zha&#39;;</span><br></pre></td></tr></table></figure>
+<h4 id="1-1-3-解决like-‘-aa-’的问题"><a href="#1-1-3-解决like-‘-aa-’的问题" class="headerlink" title="1.1.3 解决like ‘%aa%’的问题"></a>1.1.3 解决like ‘%aa%’的问题</h4><p> 可以使用覆盖索引解决两边百分号的问题</p>
+<h4 id="1-1-4-字符串类型不写单引号"><a href="#1-1-4-字符串类型不写单引号" class="headerlink" title="1.1.4 字符串类型不写单引号"></a>1.1.4 字符串类型不写单引号</h4><h3 id="1-2-一般建议"><a href="#1-2-一般建议" class="headerlink" title="1.2 一般建议"></a>1.2 一般建议</h3><p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql_index_advice.png"></p>
+<h3 id="1-3-SQL优化小口诀"><a href="#1-3-SQL优化小口诀" class="headerlink" title="1.3 SQL优化小口诀"></a>1.3 SQL优化小口诀</h3><p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql_koujue.png"></p>
+<h3 id="1-4-为排序使用索引"><a href="#1-4-为排序使用索引" class="headerlink" title="1.4 为排序使用索引"></a>1.4 为排序使用索引</h3><p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql_order.png"></p>
+<p>查看slow日志</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">docker exec -it 54f47e03794b cat &#x2F;var&#x2F;lib&#x2F;mysql&#x2F;54f47e03794b-slow.log</span><br></pre></td></tr></table></figure>
+<h3 id="1-5-执行计划"><a href="#1-5-执行计划" class="headerlink" title="1.5 执行计划"></a>1.5 执行计划</h3><h4 id="1-5-1-EXPLAIN-各个参数的意义"><a href="#1-5-1-EXPLAIN-各个参数的意义" class="headerlink" title="1.5.1 EXPLAIN 各个参数的意义"></a>1.5.1 EXPLAIN 各个参数的意义</h4><table>
+<thead>
+<tr>
+<th><strong><code>列名</code></strong></th>
+<th><strong><code>用途</code></strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>id</td>
+<td>每一个SELECT关键字查询语句都对应一个唯一id</td>
+</tr>
+<tr>
+<td>select_type</td>
+<td>SELECT关键字对应的查询类型</td>
+</tr>
+<tr>
+<td>table</td>
+<td>表名</td>
+</tr>
+<tr>
+<td>partitions</td>
+<td>匹配的分区信息</td>
+</tr>
+<tr>
+<td>type</td>
+<td>单表的访问方法</td>
+</tr>
+<tr>
+<td>possible_keys</td>
+<td>可能用到的索引</td>
+</tr>
+<tr>
+<td>key</td>
+<td>实际使用到的索引</td>
+</tr>
+<tr>
+<td>key_len</td>
+<td>实际使用到的索引长度</td>
+</tr>
+<tr>
+<td>ref</td>
+<td>当使用索引列等值查询时，与索引列进行等值匹配的对象信息</td>
+</tr>
+<tr>
+<td>rows</td>
+<td>预估需要读取的记录条数</td>
+</tr>
+<tr>
+<td>filtered</td>
+<td>某个表经过条件过滤后剩余的记录条数百分比</td>
+</tr>
+<tr>
+<td>Extra</td>
+<td>额外的一些信息</td>
+</tr>
+</tbody></table>
+<h4 id="1-5-2-测试表结构"><a href="#1-5-2-测试表结构" class="headerlink" title="1.5.2 测试表结构"></a>1.5.2 测试表结构</h4><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">DROP TABLE IF EXISTS user;</span><br><span class="line">CREATE TABLE &#96;user&#96; (</span><br><span class="line">  &#96;id&#96; int(11) NOT NULL,</span><br><span class="line">  &#96;name&#96; varchar(45) DEFAULT NULL,</span><br><span class="line">  &#96;update_time&#96; datetime DEFAULT NULL,</span><br><span class="line">  PRIMARY KEY (&#96;id&#96;),</span><br><span class="line">  KEY &#96;idx_name&#96; (&#96;name&#96;)</span><br><span class="line">) ENGINE&#x3D;InnoDB DEFAULT CHARSET&#x3D;utf8;</span><br><span class="line"></span><br><span class="line">INSERT INTO user (&#96;id&#96;, &#96;name&#96;, &#96;update_time&#96;)</span><br><span class="line">  VALUES (1,&#39;a&#39;,&#39;2017-12-22 15:27:18&#39;), (2,&#39;b&#39;,&#39;2017-12-22 15:27:18&#39;), (3,&#39;c&#39;,&#39;2017-12-22 15:27:18&#39;);</span><br><span class="line"></span><br><span class="line">DROP TABLE IF EXISTS &#96;group&#96;;</span><br><span class="line">CREATE TABLE &#96;group&#96; (</span><br><span class="line">  &#96;id&#96; int(11) NOT NULL AUTO_INCREMENT,</span><br><span class="line">  &#96;name&#96; varchar(10) DEFAULT NULL,</span><br><span class="line">  PRIMARY KEY (&#96;id&#96;),</span><br><span class="line">  KEY &#96;idx_name&#96; (&#96;name&#96;)</span><br><span class="line">) ENGINE&#x3D;InnoDB DEFAULT CHARSET&#x3D;utf8;</span><br><span class="line"></span><br><span class="line">INSERT INTO &#96;group&#96; (&#96;id&#96;, &#96;name&#96;) VALUES (1,&#39;group1&#39;),(2,&#39;group2&#39;),(3,&#39;group3&#39;);</span><br><span class="line"></span><br><span class="line">DROP TABLE IF EXISTS user_group;</span><br><span class="line">CREATE TABLE &#96;user_group&#96; (</span><br><span class="line">  &#96;id&#96; int(11) NOT NULL,</span><br><span class="line">  &#96;user_id&#96; int(11) NOT NULL,</span><br><span class="line">  &#96;group_id&#96; int(11) NOT NULL,</span><br><span class="line">  &#96;remark&#96; varchar(255) DEFAULT NULL,</span><br><span class="line">  PRIMARY KEY (&#96;id&#96;),</span><br><span class="line">  KEY &#96;idx_user_id&#96; (&#96;user_id&#96;),</span><br><span class="line">  KEY &#96;idx_group_id&#96; (&#96;group_id&#96;),</span><br><span class="line">  KEY &#96;idx_user_group_id&#96; (&#96;user_id&#96;,&#96;group_id&#96;)</span><br><span class="line">) ENGINE&#x3D;InnoDB DEFAULT CHARSET&#x3D;utf8;</span><br><span class="line"></span><br><span class="line">INSERT INTO user_group (&#96;id&#96;, &#96;user_id&#96;, &#96;group_id&#96;, &#96;remark&#96;)</span><br><span class="line">  VALUES (1,1,1,&#39;bak1&#39;), (2,2,2,&#39;bak2&#39;), (3,3,3,&#39;bak3&#39;);</span><br></pre></td></tr></table></figure>
+<h4 id="1-5-3-各列实战"><a href="#1-5-3-各列实战" class="headerlink" title="1.5.3 各列实战"></a>1.5.3 各列实战</h4><h5 id="1-5-3-1-ID"><a href="#1-5-3-1-ID" class="headerlink" title="1.5.3.1 ID"></a>1.5.3.1 ID</h5><blockquote>
+<p>设计表时通常会设计 id，一般会作为主键，执行计划的结果也不例外，也有 id 列，<code>id</code> 列编号是 <code>SELECT</code> 的序列号，并且 id 的顺序是按 <code>SELECT</code> 出现的顺序增长的。id列越大执行优先级越高，id 相同则从上往下执行，id 为 NULL 最后执行。</p>
+<p>MySQL将 <code>SELECT</code> 查询分为简单查询 <code>SIMPLE</code> 和复杂查询 <code>PRIMARY</code>。</p>
+<p>复杂查询包括：简单子查询、派生表（ <code>FROM</code> 语句中的子查询）、<code>UNION</code> 和 <code>UNION ALL</code> 查询。</p>
+</blockquote>
+<p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql_image-20200503195238709.png"></p>
+<h5 id="1-5-3-2-TYPE"><a href="#1-5-3-2-TYPE" class="headerlink" title="1.5.3.2 TYPE"></a>1.5.3.2 TYPE</h5><p>1）<code>system,const</code>：MySQL 能对查询的某部分进行优化并将其转化成一个常量。用于主键或唯一二级索引列与常数比较时，所以表最多有一个匹配行，<code>读取1次，速度比较快</code>。<code>system</code>是 <code>const</code> 的特例，表里只有一条记录匹配时为 <code>system</code>。</p>
+<p>EXPLAIN SELECT <em>FROM (SELECT</em> FROM user where id = 1) tmp;</p>
+<p>2）<code>eq_ref</code>：在<strong>连接查询</strong>时，如果被驱动表是通过主键或者唯一二级索引列等值匹配的方式进行访问的，则对该被驱动表的访问方法就是 <code>eq_ref</code>。这可能是在 const 之外最好的联接类型了。</p>
+<p>EXPLAIN SELECT * FROM user_group INNER JOIN user ON user_group.user_id = user.id;</p>
+<p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql/mysql_1.png"></p>
+<p>3）<code>ref</code>：相比 eq_ref，不使用唯一索引，而是使用普通索引或者唯一性索引的部分前缀，索引要和某个值相比较，可能会找到多个符合条件的行。</p>
+<p>a. 简单 <code>SELECT</code> 查询，name 是普通索引（非唯一索引)。</p>
+<p>EXPLAIN SELECT * FROM user where user.name = ‘a’;</p>
+<p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql/mysql_2.png"></p>
+<p>b. <code>关联表</code>查询，<code>idx_user_group_id (user_id,group_id)</code> 为联合索引，这里使用到了user_group联合索引最左边前缀 user_id。</p>
+<p>EXPLAIN SELECT user_id FROM user LEFT JOIN user_group ON user.id = user_group.user_id;</p>
+<p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql/mysql_3.png"></p>
+<p>4）<code>ref_or_null</code>：对普通二级索引进行等值查询，该索引列也可以为NULL值时。</p>
+<p>EXPLAIN SELECT * FROM user where user.name = ‘a’ OR name IS NULL;</p>
+<p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql/mysql_4.png"></p>
+<p>5）<code>index_merge</code>：MySQL使用索引合并的方式执行的。</p>
+<p>EXPLAIN SELECT * FROM user WHERE user.name = ‘a’ OR user.id = 1;</p>
+<p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql/mysql_5.png" alt="img"></p>
+<p>6）<code>range</code>：使用索引获取<code>范围区间</code>的记录，通常出现在 <code>in, between ,&gt; ,&lt;, &gt;=</code> 等操作中。</p>
+<p>EXPLAIN SELECT * FROM user WHERE user.id &gt; 1;</p>
+<p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql/mysql_6.png"></p>
+<p>7）<code>index</code>：扫描全表索引，这通常比ALL快一些。（<code>index</code>是从索引中读取的，而 <code>ALL</code> 是从硬盘中读取）</p>
+<p><code>group</code> 表里的两个字段都有索引。</p>
+<p>EXPLAIN SELECT * FROM <code>group</code>;</p>
+<p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql/mysql_11.png"></p>
+<p>8）<code>ALL</code>：即全表扫描，MySQL 需要从头到尾去查找表中所需要的行。通常情况下这需要增加索引来进行优化了。</p>
+<p>EXPLAIN SELECT * FROM <code>user</code>;</p>
+<p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql/mysql_7.png"></p>
+<p>**<br>**</p>
+<h5 id="1-5-3-3-possible-keys-列"><a href="#1-5-3-3-possible-keys-列" class="headerlink" title="1.5.3.3 possible_keys 列"></a>1.5.3.3 possible_keys 列</h5><p><code>possible_keys</code> 列表示查询可能使用哪些索引来查找。</p>
+<p><code>EXPLAIN</code> 执行计划结果可能出现 <code>possible_keys</code> 列，而 <code>key</code> 显示 <code>NULL</code> 的情况，这种情况是因为表中数据不多，MySQL 会认为索引对此查询帮助不大，选择了全表查询。</p>
+<p>如果 <code>possible_keys</code> 列为 <code>NULL</code>，则没有相关的索引。在这种情况下，可以通过检查 <code>WHERE</code> 子句去分析下，看看是否可以创造一个适当的索引来提高查询性能，然后用 <code>EXPLAIN</code> 查看效果。</p>
+<p>另外<strong>注意</strong>：不是这一列的值越多越好，使用索引过多，查询优化器计算时查询成本高，所以如果可能的话，尽量删除那些不用的索引。</p>
+<h5 id="1-5-3-4-key-len-列"><a href="#1-5-3-4-key-len-列" class="headerlink" title="1.5.3.4 key_len 列"></a>1.5.3.4 key_len 列</h5><p><code>key_len</code> 列表示当查询优化器决定使用某一个索引查询时，该索引记录的最大长度。</p>
+<p><strong><code>key_len</code> 列计算规则如下：</strong></p>
+<ul>
+<li><strong>字符串</strong></li>
+</ul>
+<p>char(n)：n字节长度</p>
+<p>varchar(n)：2字节存储字符串长度，如果是utf-8，则长度 3n + 2</p>
+<p><strong>注意：</strong>该索引列可以存储<code>NULL</code>值，则<code>key_len</code>比不可以存储<code>NULL</code>值时多1个字节。</p>
+<p>比如：varchar(50)，则实际占用的<code>key_len</code>长度是 3 * 50 + 2 = 152，如果该列允许存储<code>NULL</code>，则<code>key_len</code>长度是153。</p>
+<ul>
+<li><strong>数值类型</strong></li>
+</ul>
+<p>tinyint：1字节 smallint：2字节 int：4字节 bigint：8字节　</p>
+<ul>
+<li><strong>时间类型</strong></li>
+</ul>
+<p>date：3字节 timestamp：4字节 datetime：8字节</p>
+<p>索引最大长度是768字节，当字符串过长时，MySQL 会做一个类似左前缀索引的处理，将前半部分的字符提取出来做索引。</p>
+<p><strong>举例1：</strong></p>
+<p><code>user_group</code>表中的联合索引 <code>idx_user_group_id</code> 由 <code>user_id</code> 和 <code>group_id</code> 两个int 列组成，并且每个 int 是 4 字节。</p>
+<p>EXPLAIN SELECT * FROM user_group WHERE user_id = 2;</p>
+<p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql/mysql_8.png"></p>
+<p>通过结果中的 key_len=4可推断出查询使用了第一个列：<code>user_id</code> 列来执行索引查找。</p>
+<p><strong>举例2：</strong></p>
+<p>再看 <code>user</code> 表 name 字段是 varchar(45) 变长字符串类型，<code>key_len</code>为138 等于 <code>45 * 3 + 2 (变长字节) + 1字节（允许存储NULL值）</code></p>
+<p>EXPLAIN SELECT * FROM user WHERE name = ‘a’;</p>
+<p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql/mysql_9.png"></p>
+<p>所以，以后再看到 <code>key_len</code> 字段的值，不要在懵逼咯，固定套路~</p>
+<h5 id="1-5-3-5-filtered-列"><a href="#1-5-3-5-filtered-列" class="headerlink" title="1.5.3.5 filtered 列"></a>1.5.3.5 filtered 列</h5><p>对于单表来说意义不大，主要用于连接查询中。</p>
+<p>前文中也已提到 <code>filtered</code> 列，是一个百分比的值，对于连接查询来说，主要看<code>驱动表</code>的 <code>filtered</code>列的值 ，通过 <code>rows * filtered/100</code> 计算可以估算出<code>被驱动表</code>还需要执行的查询次数。</p>
+<p>EXPLAIN SELECT * FROM user INNER JOIN user_group ON user.id = user_group.user_id WHERE user.update_time = ‘2019-01-01’;</p>
+<p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysql/mysql_10.png"></p>
+<p>可以看到驱动表<code>user</code>执行的rows列为3行，filtered列为 33.33，计算驱动表的<code>扇出值</code>为 3 * 33.33% 约等于1，说明还需要对被驱动表执行大约1次查询。</p>
+<h5 id="1-5-3-6-Extra-列"><a href="#1-5-3-6-Extra-列" class="headerlink" title="1.5.3.6 Extra 列"></a>1.5.3.6 Extra 列</h5><p><code>Extra</code> 列提供了一些额外信息。这一列在 MySQL中提供的信息有几十个，这里仅列举一些常见的重要值如下：</p>
+<p>1）<code>Using index</code>：查询的列被索引覆盖，并且 <code>WHERE</code> 筛选条件是索引的前导列，使用了索引性能高。一般是使用了覆盖索引(查询列都是索引列字段)。对于 INNODB 存储引擎来说，如果是辅助索引性能会有不少提高，并且也不需要回表查询。</p>
+<p>2）<code>Using where Using index</code>：查询的列被索引覆盖，并且 <code>WHERE</code> 筛选条件是索引列之一，但并不是索引的前导列，意味着无法直接通过索引查找来查询到符合条件的数据。</p>
+<p>3）<code>NULL</code>：查询的列未被索引覆盖，并且 <code>WHERE</code> 筛选条件是索引的前导列，意味着用到了索引，但是部分字段未被索引覆盖，必须通过 <code>回表</code> 来查询，不是纯粹地用到了索引，也不是完全没用到索引。</p>
+<p>4）<code>Using index condition</code>：与<code>Using where</code>类似，查询的列不完全被索引覆盖，<code>WHERE</code> 条件中是一个前导列的范围。</p>
+<p>5）<code>Using temporary</code>：MySQL 中需要创建一张内部临时表来处理查询，一般出现这种情况就需要考虑进行优化了，首先是想到用索引来优化。</p>
+<p>通常在许多执行包括DISTINCT、GROUP BY、ORDER BY等子句查询过程中，如果不能有效利用索引来完成查询，MySQL很有可能会寻求建立内部临时表来执行查询。</p>
+<p>所以，执行计划中出现了 <code>Using temporary</code> 并不是个好兆头，因为建立与维护临时表要付出很大的成本的，要考虑使用<code>索引</code>来优化改进。</p>
+<p>6）<code>Using filesort</code>：MySQL 会对结果使用一个外部索引排序，而不是按索引次序从表里读取行。此时 MySQL 会根据联接类型浏览所有符合条件的记录，并保存排序关键字和行指针，然后排序关键字并按顺序检索行信息。这种情况下一般也是要考虑使用索引来优化的。</p>
+<p>查询中需要使用 <code>filesort</code> 的方式进行排序的记录非常多，那么这个过长是很耗时的，想办法将使用 <code>文件排序</code> 的执行方式改进为使用<code>索引</code>进行排序。</p>
+<p>7）<code>Index merges</code>：通常显示为<code>Using sort_union(...)</code> 说明准备用 <code>Sort-Union</code> 索引合并方式来查询；显示为 <code>Using union(...)</code>，说明准备用<code>Union</code>索引合并方式查询；显示为<code>Using intersect(...)</code>，说明准备使用<code>Intersect</code>索引合并方式查询。</p>
+<p>8）<code>LooseScan</code>：在 IN 子查询转为 <code>semi-join</code> 时，如果采用的是 <code>LooseScan</code> 执行策略，则会在<code>Extra</code>中提示。</p>
+<p>9）<code>FirstMatch(tbl_name)</code>：在 IN 子查询转为 <code>semi-join</code> 时，如果采用的是 <code>FirstMatch</code> 执行策略，则会在<code>Extra</code>中提示。</p>
+<p>10）<code>Using join buffer</code>：强调了在获取连接条件时没有使用索引，并且需要连接缓冲区来存储中间结果。出现该值，应该注意，根据查询的具体情况可能需要添加索引来改进性能。</p>
+<p>我们所提到的<code>回表</code>操作 ，其实是一种随机IO，比较耗时，所以尽量避免上面提到的回表操作，当发现<code>Extra</code>提示为 <code>Using filesort</code>、<code>Using temporary</code> 时就需要格外注意了，考虑索引优化。</p>
+<h4 id="1-5-4-总结索引优化"><a href="#1-5-4-总结索引优化" class="headerlink" title="1.5.4 总结索引优化"></a>1.5.4 总结索引优化</h4><p>上面列了大部分场景索引最佳实战，除此之外，不宜建索引的几点小总结：</p>
+<p>1）更新非常频繁字段不宜建索引</p>
+<p>因为字段更新台频繁，会导致B+树的频繁的变更，重建索引。所以这个过程是十分消耗数据库性能的。</p>
+<p>2）区分度不大的字段不宜建索引</p>
+<p>比如类似性别这类的字段，区分度不大，建立索引的意义不大。因为不能有效过滤数据，性能和全表扫描相当。另外注意一点，返回数据的比例在 <code>30%</code> 之外的，优化器不会选择使用索引。</p>
+<p>3）业务中有唯一特性的字段，建议建成<code>唯一索引</code></p>
+<p>业务中如果有唯一特性的字段，即使是多个字段的组合，也尽量都建成唯一索引。尽管唯一索引会影响插入效率，但是对于查询的速度提升是非常明显的。此外，还能够提供校验机制，如果没有唯一索引，高并发场景下，可能还会产生脏数据。</p>
+<p>4）多表关联时，要确保关联字段上必须有索引</p>
+<p>5）创建索引时避免建立错误的认识</p>
+<blockquote>
+<p>索引越多越好，认为一个查询就需要建一个索引。</p>
+<p>宁缺勿滥，认为索引会消耗空间、严重拖慢更新和新增速度。</p>
+<p>抵制唯一索引，认为业务的唯一性一律需要在应用层通过“先查后插”方式解决。</p>
+<p>过早优化，在不了解系统的情况下就开始优化。</p>
+</blockquote>
+<p>6）最佳索引实践口诀</p>
+<p>如果你觉得上面哪些太啰嗦，有朋友已总结为一套优化口诀，优化SQL时也能提个醒吧。</p>
+<blockquote>
+<p>全值匹配我最爱，最左前缀要遵守；</p>
+<p>带头大哥不能死，中间兄弟不能断；</p>
+<p>索引列上少计算，范围之后全失效；</p>
+<p>Like百分写最右，覆盖索引不写星；</p>
+<p>不等空值还有or，索引失效要少用；</p>
+<p>VAR引号不可丢，SQL高级也不难！</p>
+</blockquote>
+<p>7）<code>EXPLAIN</code> 执行计划实践总结</p>
+<p>如果还是觉得 <code>EXPLAIN</code> 执行计划列太多了，也记不住呀，那么请重点关注以下几列：</p>
+<p><code>第1列</code>：ID越大，执行的优先级越高；ID相等，从上往下优先顺序执行。</p>
+<p><code>第2列</code>：select_type 查询语句的类型，SIMPLE简单查询，PRIMARY复杂查询，DERIVED衍生查询(from子查询的临时表)，派生表。</p>
+<p><code>第4列</code>：请重点掌握，type类型，查询效率优先级：system-&gt;const-&gt;eq_ref-&gt;ref-&gt;range-&gt;index-&gt;ALL</p>
+<p><code>ALL</code> 是<code>最差</code>的，<code>system</code> 是<code>最好</code>的，性能最佳，阿里巴巴开发规约中要求最差也得到 <code>range</code> 级别，而不能有 <code>index、ALL</code>。</p>
+<h2 id="2-smile-MYSQL的锁"><a href="#2-smile-MYSQL的锁" class="headerlink" title="2 :smile:MYSQL的锁"></a>2 :smile:MYSQL的锁</h2><h3 id="2-1-MYISAM引擎的读写锁"><a href="#2-1-MYISAM引擎的读写锁" class="headerlink" title="2.1 MYISAM引擎的读写锁"></a>2.1 MYISAM引擎的读写锁</h3><p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/mysq_read_lock.png"></p>
+<h3 id="INNDB引擎中的锁"><a href="#INNDB引擎中的锁" class="headerlink" title="INNDB引擎中的锁"></a>INNDB引擎中的锁</h3><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">#查看当前的行锁🔒</span><br><span class="line">show status like &#39;innodb_row_lock%</span><br></pre></td></tr></table></figure>
+<p><img src="https://gulimall-hxb.oss-cn-shenzhen.aliyuncs.com/picture/innodb.png"></p>
+]]></content>
+      <tags>
+        <tag>mysql</tag>
+      </tags>
+  </entry>
 </search>

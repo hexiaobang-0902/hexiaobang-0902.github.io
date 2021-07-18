@@ -6,7 +6,7 @@
   <link href="http://example.com/atom.xml" rel="self"/>
   
   <link href="http://example.com/"/>
-  <updated>2021-01-02T13:55:05.602Z</updated>
+  <updated>2021-07-18T15:35:43.834Z</updated>
   <id>http://example.com/</id>
   
   <author>
@@ -15,6 +15,29 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>mysql 基础优化</title>
+    <link href="http://example.com/2021/07/18/mysql-%E5%9F%BA%E7%A1%80%E4%BC%98%E5%8C%96/"/>
+    <id>http://example.com/2021/07/18/mysql-%E5%9F%BA%E7%A1%80%E4%BC%98%E5%8C%96/</id>
+    <published>2021-07-18T15:34:19.000Z</published>
+    <updated>2021-07-18T15:35:43.834Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;link rel=&quot;stylesheet&quot; class=&quot;aplayer-secondary-style-marker&quot; href=&quot;\assets\css\APlayer.min.css&quot;&gt;&lt;script src=&quot;\assets\js\APlayer.min.js&quot;</summary>
+        
+      
+    
+    
+    
+    
+    <category term="mysql" scheme="http://example.com/tags/mysql/"/>
+    
+  </entry>
   
   <entry>
     <title>JVM深入理解</title>
